@@ -1017,9 +1017,11 @@ Phaser.Physics.P2.Body.prototype = {
             path[p][0] = this.world.pxmi(path[p][0]);
             path[p][1] = this.world.pxmi(path[p][1]);
         }
-
-        var result = this.data.fromPolygon(path, options);
-
+		var tempBod = new p2.Body({ position: [ this.data.position[0], this.data.position[1] ], mass: this.data.mass });
+		tempBod.fromPolygon(path,options);
+        //var result = this.data.fromPolygon(path, options);
+		var result = this.data.addShape(tempBod.shapes[0]);
+		this.data.adjustCenterOfMass();
         this.shapeChanged();
 
         return result;
@@ -1103,6 +1105,172 @@ Phaser.Physics.P2.Body.prototype = {
         return this.addRectangle(sprite.width, sprite.height, 0, 0, sprite.rotation);
 
     },
+    
+    setTile: function(tile, mapLayer) {
+        if (typeof tileID === 'undefined' || tileID == 'null') {
+            this.tileDetect(tile, mapLayer);
+        }
+        
+    },
+    
+    //detect tile shape based on texture
+    //Tiles MUST conform to certain parameters for the function to return viable results:
+    //Tiles must either be anchored to the top or bottom of the image. Either the first or last row of the tile must be filled
+    //Slopes on tiles are determined solely by the positions of the edge pixels on the left and right of the tile. Arbitrary shapes are not allowed (image processing is very expensive).
+    tileDetect: function(tile, mapLayer) {
+        //var texture = this.sprite.texture.baseTexture;
+		var set = mapLayer.resolveTileset(tile.index);
+        var texture = this.game.make.bitmapData(tile.width, tile.height);
+		set.draw(texture.ctx, 0,0, tile.index);
+        
+        var pixels = texture.getPixels(new Phaser.Rectangle(0,0, texture.width, texture.height)).data;
+		var leftPix, rightPix, leftUnit, rightUnit;
+        //figure out if we are anchored to the top or to the bottom
+        if (pixels.indexOf(0) == 0) {	//bottom anchor
+            if ((leftPix = pixels.findIndex(this.tileDetectSearchLow, {texture: texture, hitMod: 0})) == -1) {
+				console.log("errorLeft");
+			}
+			if ((rightPix = pixels.findIndex(this.tileDetectSearchHigh, {texture: texture, hitMod: texture.width - 1})) == -1) {
+				console.log("errorRight");
+			}
+			//adjust values to the start of the rgba component
+			leftPix -= leftPix % 4;
+			rightPix -= rightPix % 4;
+			//check where these pixels actually are
+			leftUnit = leftPix / 4;
+			rightUnit = rightPix / 4;
+			
+			//it's a rectangle
+			if (rightUnit - (texture.width - 1) == leftUnit) {
+				this.addRectangle(texture.width,texture.height - (leftUnit/texture.width), texture.width/2, texture.height/2 + (leftUnit/texture.width)/2);
+				return null;
+			}
+			//slopes upwards, use left to determine bottom rectangle
+			//ORIGIN POINT = LOWER LEFT CORNER
+			//ANCHOR POINT = LOWER RIGHT CORNER
+			else if (rightUnit - (texture.width-1) < leftUnit) {
+				/*console.log("pos:", this.data.position);
+				var anchorPoint = [(tile.x+1)*tile.width - 1, (tile.y+1)*tile.height - 1];
+				var localAnchor = [0,0];
+				console.log("global: ",anchorPoint);
+				this.toLocalFrame(localAnchor, anchorPoint);
+				console.log("local:", localAnchor);
+				localAnchor = [this.world.pxm(localAnchor[0]), this.world.pxm(localAnchor[1])];
+				console.log("Scaled local:", localAnchor);
+				*/
+				//this.addRectangle(texture.width, texture.height - (leftUnit/texture.width), texture.width/2, texture.height/2 + (leftUnit/texture.width)/2);
+				//this.addPolygon({}, [0, leftUnit/texture.width, texture.width - 1, Math.floor(rightUnit/texture.width), texture.width -1, leftUnit/texture.width ]);
+				var points = [0, texture.height, texture.width  , texture.height  , texture.width , Math.floor(rightUnit/texture.width), 0, leftUnit/texture.width];
+				this.addPolygon({}, points);
+				//FRESH HERE
+				var len = [this.world.pxmi(tile.width), this.world.pxmi(tile.height)];
+				//find the anchor axis
+				var ref = null;
+				for (var i = 0; i < this.data.shapes[0].vertices.length; i++) {
+					var axis = this.data.shapes[0].axes[i];
+					if (axis[0] == 0 && axis[1] == -1) {	//normal axis to our line, guaranteed to exist by the constraints on the tile
+						ref = i;
+						break;
+					}
+				}
+				//find the other point on that line
+				/*
+				oth = null;
+				for(var i = 0; i < this.data.shapes[0].vertices.length; i++) {
+					var axis = this.data.shapes[0].axes[i];
+					if (axis[0] = -1 && axis[1] == 0) {
+						oth = i;
+						break;
+					}
+				}*/
+				if (ref != null) {
+					//this.data.position[0] += len[0] - this.data.shapes[0].vertices[ref][0];
+					//this.data.position[1] += len[1] - this.data.shapes[0].vertices[ref][1];
+					this.data.shapeOffsets[0][0] += len[0] - this.data.shapes[0].vertices[ref][0];
+					this.data.shapeOffsets[0][1] += len[1] - this.data.shapes[0].vertices[ref][1];
+					
+				}
+				else {
+					//PANIC
+				}
+				
+				//this.offset.set(texture.width/2, texture.height/2);
+				//console.log(this.data.shapes);
+				var pointVerts = [];
+				for (var i = 0; i < points.length; i+=2) {
+					pointVerts.push(new Phaser.Point(points[i],points[i+1] ));
+				}
+				var mov = -1.549999952316284;
+				var orig = [this.data.shapes[0].vertices[1][0], this.data.shapes[0].vertices[1][1]];
+				/*for(var i = 0; i < this.data.shapes[0].vertices.length; i++) {
+					this.data.shapes[0].vertices[i][0] += mov - orig[0];
+					this.data.shapes[0].vertices[i][1] += mov - orig[1];
+				}*/
+				//this.data.position[0] += mov - orig[0];
+				//this.data.position[1] += mov - orig[1];
+				var centroid = Phaser.Point.centroid(pointVerts);
+				//this.data.shapes[0].vertices[1] = [-2,-2];
+				
+				//console.log(centroid);
+				//console.log(this.data.getAABB());
+				//centroid.set(this.world.mpxi(centroid.x), this.world.mpxi(centroid.y));
+				//console.log(centroid);
+				var diffX = centroid.x - tile.width/2;
+				var diffY = centroid.y - tile.height/2;
+				//this.data.position[1] += this.world.pxmi(centroid.y);
+				//this.data.position[0] += this.world.pxmi(centroid.x);
+				//this.data.position[0] -= this.world.pxm(tile.width - centroid.x);
+				//this.data.shapeOffsets[0] = [this.world.pxmi(centroid.x - tile.width/2 ), this.world.pxmi( centroid.y - tile.height/2)];
+				//this.data.position[1] += this.world.pxmi(7.25);
+				//this.data.position[0] += this.world.pxmi(8.25);
+				//this.data.position[0] += this.world.pxmi(tile.width/2 - centroid.x);
+				//this.data.position[1] -= this.world.pxmi(tile.height/2 - centroid.y);
+				//this.data.position[0] += this.world.pxmi(tile.width/2);
+				//this.data.position[1] += this.world.pxmi(tile.height - centroid.y/2);
+				//this.data.position = [this.world.pxmi((tile.x)*tile.width), this.world.pxmi((tile.y+1)*tile.height)];
+				//this.data.position = [this.world.pxmi(tile.x*tile.width + tile.width/2), this.world.pxmi(tile.y*tile.height + tile.height/2)];
+				this.shapeChanged();
+				//this.data.shapeOffsets[0] = [this.world.pxmi(texture.width/2), this.world.pxmi(texture.height/2)];
+				//this.data.shapeOffsets[0] = [this.world.pxmi(texture.width)/2, this.world.pxmi(leftUnit)/this.world.pxmi(texture.width)];
+				//this.data.shapeOffsets[1] = [this.world.pxmi(texture.width/4),-this.world.pxmi(texture.height/2)];
+				//this.addRectangle(texture.width, texture.height - (leftUnit/texture.width),0,0);
+				return;
+			}
+			//slopes downward, use right to determine bottom rectangle
+			else if (rightUnit - (texture.width-1) > leftUnit) {
+				this.addPolygon({}, [0,leftUnit/texture.width, 0, Math.floor(rightUnit/texture.width), texture.width, Math.floor(rightUnit/texture.width)]);
+				//this.addRectangle(texture.width, texture.height - (Math.floor(rightUnit/texture.width)), texture.width/2, texture.height/2 + (Math.floor(rightUnit/texture.width)/2));
+				return;
+			}
+			
+        }
+		else if (pixels.lastIndexOf(0) == pixels.length -1) {	//top anchor
+			
+		}
+		else { //this is the only error detection present
+			this.addRectangle(tile.width, tile.height, tile.width/2, tile.height/2, 0);
+		}
+        
+    },
+    
+    tileDetectSearchLow: function(element, index, array) {
+		var component = index % (this.texture.width*4);
+		if (element != 0 && component < 4) {
+			return true;
+		}
+		return false;
+    },
+	
+	tileDetectSearchHigh: function(element, index, array) {
+		var component = index %(this.texture.width*4);
+		if (element != 0 && component >= (this.texture.width*4) - 4) {
+			return true;
+		}
+		return false;
+		
+	},
+            
+            
 
     /**
     * Adds the given Material to all Shapes that belong to this Body.

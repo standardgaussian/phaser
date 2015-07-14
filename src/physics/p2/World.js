@@ -1709,12 +1709,12 @@ Phaser.Physics.P2.prototype = {
     * @return {array} An array of the Phaser.Physics.P2.Body objects that were created.
     */
     convertTilemap: function (map, layer, addToWorld, optimize) {
-
+		var saveLayer = layer;
         layer = map.getLayer(layer);
 
         if (typeof addToWorld === 'undefined') { addToWorld = true; }
         if (typeof optimize === 'undefined') { optimize = true; }
-
+		optimize = false; //Will explode if trying to test tile setting
         //  If the bodies array is already populated we need to nuke it
         this.clearTilemapLayerBodies(map, layer);
 
@@ -1751,8 +1751,9 @@ Phaser.Physics.P2.prototype = {
                         {
                             var body = this.createBody(sx, sy, 0, false);
 
-                            body.addRectangle(width, tile.height, width / 2, tile.height / 2, 0);
-
+                            //body.addRectangle(width, tile.height, width / 2, tile.height / 2, 0);
+							body.setTile(tile, saveLayer);
+							body.debug = true;
                             if (addToWorld)
                             {
                                 this.addBody(body);
@@ -1767,8 +1768,9 @@ Phaser.Physics.P2.prototype = {
                     {
                         var body = this.createBody(tile.x * tile.width, tile.y * tile.height, 0, false);
 
-                        body.addRectangle(tile.width, tile.height, tile.width / 2, tile.height / 2, 0);
-
+                        //body.addRectangle(tile.width, tile.height, tile.width / 2, tile.height / 2, 0);
+						body.setTile(tile, saveLayer);
+						body.debug = true;
                         if (addToWorld)
                         {
                             this.addBody(body);
