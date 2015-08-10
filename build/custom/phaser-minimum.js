@@ -7,7 +7,7 @@
 *
 * Phaser - http://phaser.io
 *
-* v2.4.1 "Ionin Spring" - Built: Fri Jul 24 2015 13:26:59
+* v2.4.2 "Altara" - Built: Wed Jul 29 2015 14:59:45
 *
 * By Richard Davey http://www.photonstorm.com @photonstorm
 *
@@ -77,7 +77,7 @@ PIXI.CANVAS_RENDERER = 1;
  */
 PIXI.VERSION = "v2.2.8";
 
-// used to create uids for various pixi objects..
+// used to create uids for various pixi objects.
 PIXI._UID = 0;
 
 if (typeof(Float32Array) != 'undefined')
@@ -9189,7 +9189,7 @@ var Phaser = Phaser || {
     * @constant
     * @type {string}
     */
-    VERSION: '2.4.1',
+    VERSION: '2.4.2',
 
     /**
     * An array of Phaser game instances.
@@ -26454,9 +26454,12 @@ Phaser.DeviceButton.prototype = {
         this.event = event;
         this.value = value;
 
-        this.altKey = event.altKey;
-        this.shiftKey = event.shiftKey;
-        this.ctrlKey = event.ctrlKey;
+        if (event)
+        {
+            this.altKey = event.altKey;
+            this.shiftKey = event.shiftKey;
+            this.ctrlKey = event.ctrlKey;
+        }
 
         this.onDown.dispatch(this, value);
 
@@ -26485,9 +26488,12 @@ Phaser.DeviceButton.prototype = {
         this.event = event;
         this.value = value;
 
-        this.altKey = event.altKey;
-        this.shiftKey = event.shiftKey;
-        this.ctrlKey = event.ctrlKey;
+        if (event)
+        {
+            this.altKey = event.altKey;
+            this.shiftKey = event.shiftKey;
+            this.ctrlKey = event.ctrlKey;
+        }
 
         this.onUp.dispatch(this, value);
 
@@ -27026,6 +27032,94 @@ Phaser.Pointer.prototype = {
     },
 
     /**
+    * Called by updateButtons.
+    * 
+    * @method Phaser.Pointer#processButtonsDown
+    * @private
+    * @param {integer} buttons - The DOM event.buttons property.
+    * @param {MouseEvent} event - The DOM event.
+    */
+    processButtonsDown: function (buttons, event) {
+
+        //  Note: These are bitwise checks, not booleans
+
+        if (Phaser.Pointer.LEFT_BUTTON & buttons)
+        {
+            this.leftButton.start(event);
+        }
+
+        if (Phaser.Pointer.RIGHT_BUTTON & buttons)
+        {
+            this.rightButton.start(event);
+        }
+                
+        if (Phaser.Pointer.MIDDLE_BUTTON & buttons)
+        {
+            this.middleButton.start(event);
+        }
+
+        if (Phaser.Pointer.BACK_BUTTON & buttons)
+        {
+            this.backButton.start(event);
+        }
+
+        if (Phaser.Pointer.FORWARD_BUTTON & buttons)
+        {
+            this.forwardButton.start(event);
+        }
+
+        if (Phaser.Pointer.ERASER_BUTTON & buttons)
+        {
+            this.eraserButton.start(event);
+        }
+
+    },
+
+    /**
+    * Called by updateButtons.
+    * 
+    * @method Phaser.Pointer#processButtonsUp
+    * @private
+    * @param {integer} buttons - The DOM event.buttons property.
+    * @param {MouseEvent} event - The DOM event.
+    */
+    processButtonsUp: function (button, event) {
+
+        //  Note: These are bitwise checks, not booleans
+
+        if (button === Phaser.Mouse.LEFT_BUTTON)
+        {
+            this.leftButton.stop(event);
+        }
+
+        if (button === Phaser.Mouse.RIGHT_BUTTON)
+        {
+            this.rightButton.stop(event);
+        }
+                
+        if (button === Phaser.Mouse.MIDDLE_BUTTON)
+        {
+            this.middleButton.stop(event);
+        }
+
+        if (button === Phaser.Mouse.BACK_BUTTON)
+        {
+            this.backButton.stop(event);
+        }
+
+        if (button === Phaser.Mouse.FORWARD_BUTTON)
+        {
+            this.forwardButton.stop(event);
+        }
+
+        if (button === 5)
+        {
+            this.eraserButton.stop(event);
+        }
+
+    },
+
+    /**
     * Called when the event.buttons property changes from zero.
     * Contains a button bitmask.
     * 
@@ -27037,73 +27131,23 @@ Phaser.Pointer.prototype = {
 
         this.button = event.button;
 
-        //  This is tested back to IE9, but possibly some browsers may report this differently.
-        //  If you find one, please tell us!
-        var buttons = event.buttons;
+        var down = (event.type.toLowerCase().substr(-4) === 'down');
 
-        if (buttons !== undefined)
+        if (event.buttons !== undefined)
         {
-            //  Note: These are bitwise checks, not booleans
-
-            if (Phaser.Pointer.LEFT_BUTTON & buttons)
+            if (down)
             {
-                this.leftButton.start(event);
+                this.processButtonsDown(event.buttons, event);
             }
             else
             {
-                this.leftButton.stop(event);
-            }
-
-            if (Phaser.Pointer.RIGHT_BUTTON & buttons)
-            {
-                this.rightButton.start(event);
-            }
-            else
-            {
-                this.rightButton.stop(event);
-            }
-                    
-            if (Phaser.Pointer.MIDDLE_BUTTON & buttons)
-            {
-                this.middleButton.start(event);
-            }
-            else
-            {
-                this.middleButton.stop(event);
-            }
-
-            if (Phaser.Pointer.BACK_BUTTON & buttons)
-            {
-                this.backButton.start(event);
-            }
-            else
-            {
-                this.backButton.stop(event);
-            }
-
-            if (Phaser.Pointer.FORWARD_BUTTON & buttons)
-            {
-                this.forwardButton.start(event);
-            }
-            else
-            {
-                this.forwardButton.stop(event);
-            }
-
-            if (Phaser.Pointer.ERASER_BUTTON & buttons)
-            {
-                this.eraserButton.start(event);
-            }
-            else
-            {
-                this.eraserButton.stop(event);
+                this.processButtonsUp(event.button, event);
             }
         }
         else
         {
             //  No buttons property (like Safari on OSX when using a trackpad)
-
-            if (event.type === 'mousedown')
+            if (down)
             {
                 this.leftButton.start(event);
             }
@@ -27116,6 +27160,7 @@ Phaser.Pointer.prototype = {
 
         //  On OS X (and other devices with trackpads) you have to press CTRL + the pad
         //  to initiate a right-click event, so we'll check for that here
+
         if (event.ctrlKey && this.leftButton.isDown)
         {
             this.rightButton.start(event);
@@ -27138,6 +27183,8 @@ Phaser.Pointer.prototype = {
     * @param {any} event - The DOM event from the browser.
     */
     start: function (event) {
+
+        // console.log(event);
 
         if (event['pointerId'])
         {
@@ -27269,7 +27316,7 @@ Phaser.Pointer.prototype = {
             this.button = event.button;
         }
 
-        if (fromClick)
+        if (fromClick && this.isMouse)
         {
             this.updateButtons(event);
         }
@@ -35960,7 +36007,7 @@ Phaser.Device.canPlayVideo = function (type) {
     {
         return true;
     }
-    else if (type === 'ogg' && this.oggVideo)
+    else if ((type === 'ogg' || type === 'ogv') && this.oggVideo)
     {
         return true;
     }
@@ -43649,11 +43696,14 @@ Phaser.Cache.prototype = {
     *
     * @method Phaser.Cache#getFrame
     * @param {string} key - Asset key of the frame data to retrieve from the Cache.
+    * @param {integer} [cache=Phaser.Cache.IMAGE] - The cache to search for the item in.
     * @return {Phaser.Frame} The frame data.
     */
-    getFrame: function (key) {
+    getFrame: function (key, cache) {
 
-        return this.getItem(key, Phaser.Cache.IMAGE, 'getFrame', 'frame');
+        if (cache === undefined) { cache = Phaser.Cache.IMAGE; }
+
+        return this.getItem(key, cache, 'getFrame', 'frame');
 
     },
 
@@ -43662,11 +43712,12 @@ Phaser.Cache.prototype = {
     *
     * @method Phaser.Cache#getFrameCount
     * @param {string} key - Asset key of the FrameData you want.
+    * @param {integer} [cache=Phaser.Cache.IMAGE] - The cache to search for the item in.
     * @return {number} Then number of frames. 0 if the image is not found.
     */
-    getFrameCount: function (key) {
+    getFrameCount: function (key, cache) {
 
-        var data = this.getFrameData(key);
+        var data = this.getFrameData(key, cache);
 
         if (data)
         {
@@ -43688,11 +43739,14 @@ Phaser.Cache.prototype = {
     *
     * @method Phaser.Cache#getFrameData
     * @param {string} key - Asset key of the frame data to retrieve from the Cache.
+    * @param {integer} [cache=Phaser.Cache.IMAGE] - The cache to search for the item in.
     * @return {Phaser.FrameData} The frame data.
     */
-    getFrameData: function (key) {
+    getFrameData: function (key, cache) {
 
-        return this.getItem(key, Phaser.Cache.IMAGE, 'getFrameData', 'frameData');
+        if (cache === undefined) { cache = Phaser.Cache.IMAGE; }
+
+        return this.getItem(key, cache, 'getFrameData', 'frameData');
 
     },
 
@@ -43701,11 +43755,14 @@ Phaser.Cache.prototype = {
     *
     * @method Phaser.Cache#hasFrameData
     * @param {string} key - Asset key of the frame data to retrieve from the Cache.
+    * @param {integer} [cache=Phaser.Cache.IMAGE] - The cache to search for the item in.
     * @return {boolean} True if the given key has frameData in the cache, otherwise false.
     */
-    hasFrameData: function (key) {
+    hasFrameData: function (key, cache) {
 
-        return (this.getItem(key, Phaser.Cache.IMAGE, '', 'frameData') !== null);
+        if (cache === undefined) { cache = Phaser.Cache.IMAGE; }
+
+        return (this.getItem(key, cache, '', 'frameData') !== null);
 
     },
 
@@ -43734,11 +43791,12 @@ Phaser.Cache.prototype = {
     * @method Phaser.Cache#getFrameByIndex
     * @param {string} key - Asset key of the frame data to retrieve from the Cache.
     * @param {number} index - The index of the frame you want to get.
+    * @param {integer} [cache=Phaser.Cache.IMAGE] - The cache to search. One of the Cache consts such as `Phaser.Cache.IMAGE` or `Phaser.Cache.SOUND`.
     * @return {Phaser.Frame} The frame object.
     */
-    getFrameByIndex: function (key, index) {
+    getFrameByIndex: function (key, index, cache) {
 
-        var data = this.getFrameData(key);
+        var data = this.getFrameData(key, cache);
 
         if (data)
         {
@@ -43757,11 +43815,12 @@ Phaser.Cache.prototype = {
     * @method Phaser.Cache#getFrameByName
     * @param {string} key - Asset key of the frame data to retrieve from the Cache.
     * @param {string} name - The name of the frame you want to get.
+    * @param {integer} [cache=Phaser.Cache.IMAGE] - The cache to search. One of the Cache consts such as `Phaser.Cache.IMAGE` or `Phaser.Cache.SOUND`.
     * @return {Phaser.Frame} The frame object.
     */
-    getFrameByName: function (key, name) {
+    getFrameByName: function (key, name, cache) {
 
-        var data = this.getFrameData(key);
+        var data = this.getFrameData(key, cache);
 
         if (data)
         {
@@ -43940,6 +43999,10 @@ Phaser.Cache.prototype = {
 
     /**
     * Removes a sound from the cache.
+    *
+    * If any `Phaser.Sound` objects use the audio file in the cache that you remove with this method, they will
+    * _automatically_ destroy themselves. If you wish to have full control over when Sounds are destroyed then
+    * you must finish your house-keeping and destroy them all yourself first, before calling this method.
     *
     * Note that this only removes it from the Phaser.Cache. If you still have references to the data elsewhere
     * then it will persist in memory.
